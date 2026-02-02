@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:18-bookworm
+    container_name: messenger-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: messenger
+      POSTGRES_USER: messenger_user
+      POSTGRES_PASSWORD: pass1905word
+    volumes:
+      - postgres_data:/var/lib/postgresql
+volumes:
+  postgres_data:   
