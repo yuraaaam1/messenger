@@ -5,7 +5,7 @@ import(
 )
 
 func main() {
-	fs := http.FileServer(http.Dir("./frontend")
+	fs := http.FileServer(http.Dir("./frontend"))
 	http.Handle("/", fs)
 
 	http.HandleFunc("/api/messages", func(w http.ResponseWriter, r *http.Request){
