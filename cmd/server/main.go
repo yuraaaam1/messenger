@@ -1,31 +1,56 @@
 package main
 
+import (
+	"context"
+	"log"
+	"messenger/internal/handlers"
+	"messenger/internal/store"
+	"messenger/internal/websocket"
+	"net/http"
+
+	"messenger/internal/database"
+
+	"github.com/jackc/pgx/v5"
+)
+
 func main() {
-	connString :="postgres://messenger_user:pass1905word@localhost:5432/messenger?sslmode=disable"
+	// Подключение к бд
+	connString := "postgres://messenger_user:pass1905word@localhost:5432/messenger?sslmode=disable"
 
 	db, err := database.NewConnection(connString)
-	if err != nil{
+	if err != nil {
 		log.Fatalf("Не удалось инициализировать подклчючение к базе данных: %v", err)
-	}	
-		defer db.Close(context.Background())
+	}
+	defer db.Close(context.Background())
 
-		addTestData(db)
+	addTestData(db)
 
-		messageStore := store.NewStore(db)
+	// Инициализация websocket-хаба
+	hub := websocket.NewHub()
+	go hub.Run()
 
-		messageHandler := handlers.NewMessageHandler(messageStore)
+	// Инициазизация хранилища[store]
+	messageStore := store.NewStore(db)
 
-		mux := http.NewServeMux()
+	// Инизиализация хендлера
+	messageHandler := handlers.NewMessageHandler(messageStore)
 
-		fs := http.FileServer(http.Dir("./frontend"))
-		mux.Handle("/", fs)
-		mux.HandleFunc("/api/messages", messageHandler.GetMessagesHandler)
+	// Настройка маршрутизации
+	mux := http.NewServeMux()
 
-		log.Println("Запуск сервера на http://localhost:8080")
+	fs := http.FileServer(http.Dir("./frontend"))
+	mux.Handle("/", fs)
+	mux.HandleFunc("/api/messages", messageHandler.GetMessagesHandler)
+	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		websocket.ServeWs(hub, w, r)
+	})
 
-		if err := http.ListenAndServe(":8080", mux); err != nil {
-			log.Fatalf("Ошибка при запуске сервера: %v", err)
-		}
+	log.Println("Запуск сервера на http://localhost:8080")
+
+	// Запуск сервера
+	if err := http.ListenAndServe(":8080", mux); err != nil {
+		log.Fatalf("Ошибка при запуске сервера: %v", err)
+	}
 }
 
 func addTestData(db *pgx.Conn) {
