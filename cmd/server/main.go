@@ -1,31 +1,43 @@
 package main
 
+import (
+	"context"
+	"log"
+	"messenger/internal/handlers"
+	"messenger/internal/store"
+	"net/http"
+
+	"messenger/internal/database"
+
+	"github.com/jackc/pgx/v5"
+)
+
 func main() {
-	connString :="postgres://messenger_user:pass1905word@localhost:5432/messenger?sslmode=disable"
+	connString := "postgres://messenger_user:pass1905word@localhost:5432/messenger?sslmode=disable"
 
 	db, err := database.NewConnection(connString)
-	if err != nil{
+	if err != nil {
 		log.Fatalf("Не удалось инициализировать подклчючение к базе данных: %v", err)
-	}	
-		defer db.Close(context.Background())
+	}
+	defer db.Close(context.Background())
 
-		addTestData(db)
+	addTestData(db)
 
-		messageStore := store.NewStore(db)
+	messageStore := store.NewStore(db)
 
-		messageHandler := handlers.NewMessageHandler(messageStore)
+	messageHandler := handlers.NewMessageHandler(messageStore)
 
-		mux := http.NewServeMux()
+	mux := http.NewServeMux()
 
-		fs := http.FileServer(http.Dir("./frontend"))
-		mux.Handle("/", fs)
-		mux.HandleFunc("/api/messages", messageHandler.GetMessagesHandler)
+	fs := http.FileServer(http.Dir("./frontend"))
+	mux.Handle("/", fs)
+	mux.HandleFunc("/api/messages", messageHandler.GetMessagesHandler)
 
-		log.Println("Запуск сервера на http://localhost:8080")
+	log.Println("Запуск сервера на http://localhost:8080")
 
-		if err := http.ListenAndServe(":8080", mux); err != nil {
-			log.Fatalf("Ошибка при запуске сервера: %v", err)
-		}
+	if err := http.ListenAndServe(":8080", mux); err != nil {
+		log.Fatalf("Ошибка при запуске сервера: %v", err)
+	}
 }
 
 func addTestData(db *pgx.Conn) {
