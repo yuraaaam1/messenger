@@ -25,12 +25,12 @@ func main() {
 
 	addTestData(db)
 
-	// Инициализация websocket-хаба
-	hub := websocket.NewHub()
-	go hub.Run()
-
 	// Инициазизация хранилища[store]
 	messageStore := store.NewStore(db)
+
+	// Инициализация websocket-хаба
+	hub := websocket.NewHub(messageStore)
+	go hub.Run()
 
 	// Инизиализация хендлера
 	messageHandler := handlers.NewMessageHandler(messageStore)
