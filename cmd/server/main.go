@@ -5,6 +5,7 @@ import (
 	"log"
 	"messenger/internal/handlers"
 	"messenger/internal/store"
+	"messenger/internal/websocket"
 	"net/http"
 
 	"messenger/internal/database"
@@ -13,6 +14,7 @@ import (
 )
 
 func main() {
+	// Подключение к бд
 	connString := "postgres://messenger_user:pass1905word@localhost:5432/messenger?sslmode=disable"
 
 	db, err := database.NewConnection(connString)
@@ -23,18 +25,29 @@ func main() {
 
 	addTestData(db)
 
+	// Инициализация websocket-хаба
+	hub := websocket.NewHub()
+	go hub.Run()
+
+	// Инициазизация хранилища[store]
 	messageStore := store.NewStore(db)
 
+	// Инизиализация хендлера
 	messageHandler := handlers.NewMessageHandler(messageStore)
 
+	// Настройка маршрутизации
 	mux := http.NewServeMux()
 
 	fs := http.FileServer(http.Dir("./frontend"))
 	mux.Handle("/", fs)
 	mux.HandleFunc("/api/messages", messageHandler.GetMessagesHandler)
+	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		websocket.ServeWs(hub, w, r)
+	})
 
 	log.Println("Запуск сервера на http://localhost:8080")
 
+	// Запуск сервера
 	if err := http.ListenAndServe(":8080", mux); err != nil {
 		log.Fatalf("Ошибка при запуске сервера: %v", err)
 	}
