@@ -2,76 +2,82 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"messenger/internal/handlers"
 	"messenger/internal/store"
-	"messenger/internal/websocket"
 	"net/http"
+	"os"
 
-	"messenger/internal/database"
-
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/joho/godotenv"
 )
 
-func main() {
-	// Подключение к бд
-	connString := "postgres://messenger_user:pass1905word@localhost:5432/messenger?sslmode=disable"
-
-	db, err := database.NewConnection(connString)
-	if err != nil {
-		log.Fatalf("Не удалось инициализировать подклчючение к базе данных: %v", err)
-	}
-	defer db.Close(context.Background())
-
-	addTestData(db)
-
-	// Инициазизация хранилища[store]
-	messageStore := store.NewStore(db)
-
-	// Инициализация websocket-хаба
-	hub := websocket.NewHub(messageStore)
-	go hub.Run()
-
-	// Инизиализация хендлера
-	messageHandler := handlers.NewMessageHandler(messageStore)
-
-	// Настройка маршрутизации
-	mux := http.NewServeMux()
-
-	fs := http.FileServer(http.Dir("./frontend"))
-	mux.Handle("/", fs)
-	mux.HandleFunc("/api/messages", messageHandler.GetMessagesHandler)
-	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		websocket.ServeWs(hub, w, r)
-	})
-
-	log.Println("Запуск сервера на http://localhost:8080")
-
-	// Запуск сервера
-	if err := http.ListenAndServe(":8080", mux); err != nil {
-		log.Fatalf("Ошибка при запуске сервера: %v", err)
-	}
+type Config struct {
+	DatabaseURL string
+	JWTSecret   string
 }
 
-func addTestData(db *pgx.Conn) {
-	_, err := db.Exec(context.Background(), `
-		INSERT INTO users (id, username, email, password_hash) VALUES (1, 'Alice', 'alice@example.com', 'hash1') ON CONFLICT (id) DO NOTHING;
-		INSERT INTO users (id, username, email, password_hash) VALUES (2, 'Bob', 'bob@example.com', 'hash2') ON CONFLICT (id) DO NOTHING;
-        INSERT INTO chats (id, name) VALUES (1, 'General') ON CONFLICT (id) DO NOTHING;
-        INSERT INTO chat_participants (chat_id, user_id) VALUES (1, 1) ON CONFLICT DO NOTHING;
-        INSERT INTO chat_participants (chat_id, user_id) VALUES (1, 2) ON CONFLICT DO NOTHING;
-	`)
-
-	if err != nil {
-		log.Printf("Не удалось добавить базовые сущности (возможно, они уже существуют): %v\n", err)
+func loadConfig() (Config, error) {
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		return Config{}, fmt.Errorf("Переменная окружения \"DATABASE_URL\" не установлена")
 	}
 
-	_, err = db.Exec(context.Background(), `
-		INSERT INTO messages (chat_id, sender_id, encrypted_content, iv) SELECT 1, 1, 'Привет из базы данных!', 'iv1' WHERE NOT EXISTS (SELECT 1 FROM messages WHERE encrypted_content = 'Привет из базы данных!');
-		INSERT INTO messages (chat_id, sender_id, encrypted_content, iv) SELECT 1, 2, 'А вот и я!', 'iv2' WHERE NOT EXISTS (SELECT 1 FROM messages WHERE encrypted_content = 'А вот и я!');
-    `)
-
-	if err != nil {
-		log.Printf("Не удалось добавить тестовые сообщения (возможно, они уже существуют): %v\n", err)
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		return Config{}, fmt.Errorf("Переменная окружени \"JWT_SECRET\" не установлена")
 	}
+
+	return Config{
+		DatabaseURL: dbURL,
+		JWTSecret:   jwtSecret,
+	}, nil
+}
+
+func main() {
+	if err := godotenv.Load(); err != nil {
+		log.Println("Файл .env не найден, используются переменные окружения системы")
+	}
+
+	// Загружаем конфигурации с env
+	config, err := loadConfig()
+	if err != nil {
+		log.Fatalf("Ошибка при загрузке конфигурации: %v", err)
+	}
+
+	// Создаём пул соединений с базой данных
+	dbpool, err := pgxpool.New(context.Background(), config.DatabaseURL)
+	if err != nil {
+		log.Fatalf("Не удалось подключиться к базе данных: %v", err)
+	}
+	defer dbpool.Close()
+
+	mainStore := store.NewStore(dbpool)
+	messageHub := handlers.NewHub()
+	go messageHub.Run()
+
+	fs := http.FileServer(http.Dir("./frontend"))
+
+	http.Handle("/", fs)
+
+	// Инициализируем хендлер и маршруты для аутентификации
+	authHandler := handlers.NewAuthHandler(mainStore, config.JWTSecret)
+	http.HandleFunc("/api/auth/register", authHandler.Register)
+	http.HandleFunc("/api/auth/login", authHandler.Login)
+
+	// Маршрут для подтягивания истории сообщений
+	http.HandleFunc("/api/messages", handlers.GetMessages(mainStore))
+
+	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		hub := messageHub
+		hub.ServeWs(w, r, mainStore)
+	})
+
+	log.Println("Сервер запущен на http://localhost:8080")
+
+	if err := http.ListenAndServe(":8080", nil); err != nil {
+		log.Fatalf("Не удалось запустить сервер: %v", err)
+	}
+
 }

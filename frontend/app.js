@@ -25,7 +25,7 @@ document.addEventListener("DOMContentLoaded", function() {
             return response.json();
         })
         .then(messages => {
-            if (messages && messages.lenght > 0) {
+            if (messages && messages.length > 0) {
                 messages.forEach(addMessage);
             }
         })
