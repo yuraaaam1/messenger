@@ -7,10 +7,19 @@ import (
 	"messenger/internal/models"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/crypto/bcrypt"
 )
 
-func (s *Store) CreateUser(ctx context.Context, username, email, password string) (*models.User, error) {
+type UserStore struct {
+	db *pgxpool.Pool
+}
+
+func NewUserStore(db *pgxpool.Pool) *UserStore {
+	return &UserStore{db: db}
+}
+
+func (s *UserStore) CreateUser(ctx context.Context, username, email, password string) (*models.User, error) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, fmt.Errorf("Ошибка при хешировании пароля: %w", err)
@@ -44,7 +53,7 @@ func (s *Store) CreateUser(ctx context.Context, username, email, password string
 	return user, nil
 }
 
-func (s *Store) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
+func (s *UserStore) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
 	user := &models.User{}
 	query := `
 		SELECT id, username, email, password_hash, created_at, updated_at

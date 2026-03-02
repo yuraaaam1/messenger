@@ -6,6 +6,7 @@ import (
 	"log"
 	"messenger/internal/handlers"
 	"messenger/internal/store"
+	"messenger/internal/websocket"
 	"net/http"
 	"os"
 
@@ -54,7 +55,7 @@ func main() {
 	defer dbpool.Close()
 
 	mainStore := store.NewStore(dbpool)
-	messageHub := handlers.NewHub()
+	messageHub := websocket.NewHub(mainStore)
 	go messageHub.Run()
 
 	fs := http.FileServer(http.Dir("./frontend"))
@@ -67,11 +68,11 @@ func main() {
 	http.HandleFunc("/api/auth/login", authHandler.Login)
 
 	// Маршрут для подтягивания истории сообщений
-	http.HandleFunc("/api/messages", handlers.GetMessages(mainStore))
+	messageHandler := handlers.NewMessageHandler(mainStore)
+	http.HandleFunc("/api/messages", messageHandler.GetMessagesHandler)
 
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		hub := messageHub
-		hub.ServeWs(w, r, mainStore)
+		websocket.ServeWs(messageHub, w, r)
 	})
 
 	log.Println("Сервер запущен на http://localhost:8080")
