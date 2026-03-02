@@ -72,7 +72,7 @@ func main() {
 	http.HandleFunc("/api/messages", messageHandler.GetMessagesHandler)
 
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		websocket.ServeWs(messageHub, w, r)
+		websocket.ServeWs(messageHub, w, r, config.JWTSecret)
 	})
 
 	log.Println("Сервер запущен на http://localhost:8080")

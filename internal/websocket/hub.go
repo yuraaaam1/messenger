@@ -8,17 +8,22 @@ import (
 	"messenger/internal/store"
 )
 
+type ClientMessage struct {
+	Client  *Client
+	Message []byte
+}
+
 type Hub struct {
-	clients    map[*Client]bool // Зарегестрированные клиенты
-	broadcast  chan []byte      // Входящие сообщения
-	register   chan *Client     // Запросы на регистрацию
-	unregister chan *Client     // Запросы на отмену регистрации
+	clients    map[*Client]bool    // Зарегестрированные клиенты
+	broadcast  chan *ClientMessage // Входящие сообщения
+	register   chan *Client        // Запросы на регистрацию
+	unregister chan *Client        // Запросы на отмену регистрации
 	store      *store.Store
 }
 
 func NewHub(s *store.Store) *Hub {
 	return &Hub{
-		broadcast:  make(chan []byte),
+		broadcast:  make(chan *ClientMessage),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 		clients:    make(map[*Client]bool),
@@ -31,21 +36,23 @@ func (h *Hub) Run() {
 		select {
 		case client := <-h.register:
 			h.clients[client] = true
-			log.Println("Успешное подключение. Всего подключений:", len(h.clients))
+			log.Printf("Клиент %s (ID: %d) подключен. Всего подключений: %d", client.Username, client.UserID, len(h.clients))
 		case client := <-h.unregister:
 			if _, ok := h.clients[client]; ok {
 				delete(h.clients, client)
 				close(client.send)
-				log.Println("Успешное отключение. Всего подключений:", len(h.clients))
+				log.Printf("Клиент %s (ID: %d) отключён. Всего подключений: %d", client.Username, client.UserID, len(h.clients))
 			}
-		case messageData := <-h.broadcast:
+		case clientMsg := <-h.broadcast:
 			var msg models.Message
-			if err := json.Unmarshal(messageData, &msg); err != nil {
+			if err := json.Unmarshal(clientMsg.Message, &msg); err != nil {
 				log.Printf("Ошибка при распаковке JSON: %v", err)
 				continue
 			}
 
-			savedMsg, err := h.store.CreateMessage(context.Background(), &msg)
+			msg.User = clientMsg.Client.Username
+
+			savedMsg, err := h.store.CreateMessage(context.Background(), &msg, clientMsg.Client.UserID)
 			if err != nil {
 				log.Printf("Ошибка при сохранении сообщения в БД: %v", err)
 				continue

@@ -49,13 +49,9 @@ func (s *MessageStore) GetMessages(ctx context.Context) ([]models.Message, error
 	return messages, nil
 }
 
-func (s *MessageStore) CreateMessage(ctx context.Context, msg *models.Message) (*models.Message, error) {
-	var senderID int64 = 1
-	var chatID int64 = 1
+func (s *MessageStore) CreateMessage(ctx context.Context, msg *models.Message, userID int64) (*models.Message, error) {
 
-	if msg.User == "Bob" {
-		senderID = 2
-	}
+	var chatID int64 = 1
 
 	const query = `
 	WITH new_msg AS (
@@ -71,7 +67,7 @@ func (s *MessageStore) CreateMessage(ctx context.Context, msg *models.Message) (
 	var savedMsg models.Message
 	var contentBytes []byte
 
-	err := s.db.QueryRow(ctx, query, senderID, chatID, msg.Text).Scan(
+	err := s.db.QueryRow(ctx, query, userID, chatID, msg.Text).Scan(
 		&savedMsg.User,
 		&contentBytes,
 		&savedMsg.SentAt,

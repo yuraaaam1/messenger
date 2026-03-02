@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"log"
+	"messenger/internal/auth"
 	"net/http"
 	"time"
 
@@ -29,6 +30,10 @@ type Client struct {
 	conn *websocket.Conn
 
 	send chan []byte
+
+	UserID int64
+
+	Username string
 }
 
 // readPump считывает сообщения от клиента и передаёт их в хаб
@@ -51,7 +56,7 @@ func (c *Client) readPump() {
 			break
 		}
 
-		c.hub.broadcast <- message // Передача в хаб
+		c.hub.broadcast <- &ClientMessage{Client: c, Message: message} // Передача в хаб
 	}
 
 }
@@ -98,17 +103,35 @@ func (c *Client) writePump() {
 }
 
 // Обрабатывает websocket запрросы от клиента
-func ServeWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
+func ServeWs(hub *Hub, w http.ResponseWriter, r *http.Request, jwtSecret string) {
+	// Получаем токен из параметров запроса;
+	tokenString := r.URL.Query().Get("token")
+	if tokenString == "" {
+		log.Println("Токен отсутствует в запросе")
+		http.Error(w, "Missing token", http.StatusUnauthorized)
+		return
+	}
+	// Валидируем токен;
+	claims, err := auth.ValidateJWT(tokenString, jwtSecret)
+	if err != nil {
+		log.Printf("Ошибка валидации токена: %v", err)
+		http.Error(w, "Invalid token", http.StatusUnauthorized)
+		return
+	}
+	// Обновляемся до WebSocket;
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err)
 		return
 	}
-
+	// Создаём клиента
 	client := &Client{
 		hub:  hub,
 		conn: conn,
 		send: make(chan []byte, 256),
+
+		UserID:   claims.UserID,
+		Username: claims.Username,
 	}
 
 	client.hub.register <- client
