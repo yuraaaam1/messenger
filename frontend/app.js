@@ -1,44 +1,46 @@
 document.addEventListener("DOMContentLoaded", function() {
-    const authContainer = document.getElementById("auth-container");
-    const chatContainer = document.getElementById("chat-container");
+    const authContainer = document.getElementById('auth-container');
+    const chatContainer = document.getElementById('chat-container');
 
-    const loginForm = document.getElementById("login-form");
-    const registerForm = document.getElementById("register-form");
+    const loginForm = document.getElementById('login-form');
+    const registerForm = document.getElementById('register-form');
 
-    const showRegisterLink = document.getElementById("show-register");
-    const showLoginLink = document.getElementById("show-login");
+    const showRegisterLink = document.getElementById('show-register');
+    const showLoginLink = document.getElementById('show-login');
 
-    const authError = document.getElementById("auth-error");
+    const authError = document.getElementById('auth-error');
 
 
-    const messageList = document.getElementById("messages-list");
-    const messageForm = document.getElementById("message-form");
-    const messageInput = document.getElementById("message-input");
-    const logoutButton = document.getElementById("logout-button");
+    const messageList = document.getElementById('messages-list');
+    const messageForm = document.getElementById('message-form');
+    const messageInput = document.getElementById('message-input');
+    const logoutButton = document.getElementById('logout-button');
 
     let socket;
     let token = localStorage.getItem("authToken")
 
     // Переключение между формами login и register;
-    showRegisterLink.addEventListener("click", (e) => {
+    showRegisterLink.addEventListener('click', (e) => {
         e.preventDefault();
-        document.getElementById("login-form-container").style.display = "none";
-        document.getElementById("register-form-container").style.display = "block";
-        authError.textContent = "";
+        loginFormContainer.style.display = 'none';
+        registerFormContainer.style.display = 'block';
+        if (authError) authError.textContent = '';
     });
-    showLoginLink.addEventListener("click", (e) => {
+    showLoginLink.addEventListener('click', (e) => {
         e.preventDefault();
-        document.getElementById("register-form-container").style.display = "none";
-        document.getElementById("login-form-container").style.display = "block";
-        authError.textContainer = "";
+        registerFormContainer.style.display = 'none';
+        loginFormContainer.style.display = 'block';
+        if (authError) authError.textContent = '';
     });
 
+    function showAuthError(message) {
+        if (authError) authError.textContent = message;
+    }
 
     function addMessage(msg) {
         const listItem = document.createElement('div');
-
-        
         const formattedDate = new Date(msg.sent_at).toLocaleString();
+        
         listItem.innerHTML = `<strong>${msg.user}:</strong> ${msg.text} <span class="timestamp">${formattedDate}</span>`;
         messageList.appendChild(listItem);
         messageList.scrollTop = messageList.scrollHeight;
@@ -46,73 +48,73 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // Auth logic;
 
-    loginForm.addEventListener("submit", async (e) =>{
+    loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const email = document.getElementById("login-email").value;
-        const password = document.getElementById("login-password").value;
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
 
         try {
-            const response = await fetch("/api/auth/login", {
-                method: "POST",
-                headers: {"Content-Type": "application-json"},
+            const response = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application-json'},
                 body: JSON.stringify({email, password})
             });
 
             const data = await response.json();
 
             if (!response.ok){
-                throw new Error(data.error || "Ошибка ввода");
+                throw new Error(data.error || 'Ошибка ввода');
             }
 
             token = data.token;
-            localStorage.setItem("authToken", token);
+            localStorage.setItem('authToken', token);
             initializeApp();
         
         } catch (error) {
             showAuthError(error.message);
-            console.error("Ошибка ввода:", error);
+            console.error('Ошибка ввода:', error);
         } 
     });
 
-    registerForm.addEventListener("submit", async(e) => {
+    registerForm.addEventListener('submit', async(e) => {
         e.preventDefault();
-        const username = document.getElementById("register-username").value;
-        const email = document.getElementById("register-email").value;
-        const password = document.getElementById("register-password").value;
+        const username = document.getElementById('register-username').value;
+        const email = document.getElementById('register-email').value;
+        const password = document.getElementById('register-password').value;
 
         try {
-            const response = await fetch("/api/auth/register", {
-                method: "POST",
-                headers: {"Content-Type": "application-json"},
+            const response = await fetch('/api/auth/register', {
+                method: 'POST',
+                headers: {'Content-Type': 'application-json'},
                 body: JSON.stringify({username, email, password})
             });
 
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data.error || "Ошибка регистрации");
+                throw new Error(data.error || 'Ошибка регистрации');
             }
 
             token = data.token;
-            localStorage.setItem("authToken", token);
+            localStorage.setItem('authToken', token);
             initializeApp();
         
         } catch (error) {
             showAuthError(error.message)
-            console.error("Ошибка регистрации", error);
+            console.error('Ошибка регистрации', error);
         }
     });
 
-    logoutButton.addEventListener("click", () => {
+    logoutButton.addEventListener('click', () => {
         token = null;
-        localStorage.removeItem("authToken");
+        localStorage.removeItem('authToken');
         if (socket) {
             socket.close();
         }
-        authContainer.style.display = "block";
-        chatContainer.style.display = "none";
-        messageList.innerHTML = "";
-        console.log("Выход из системы.");
+        authContainer.style.display = 'block';
+        chatContainer.style.display = 'none';
+        messageList.innerHTML = '';
+        console.log('Выход из системы.');
     });
 
     // Chat logic;
@@ -159,8 +161,8 @@ document.addEventListener("DOMContentLoaded", function() {
             }
         })
         .catch(error => {
-            console.error("Ошибка при загрузке истории сообщений:", error);
-            messageList.innerHTML = "<p>Не удалось загрузить историю сообщений</p>";
+            console.error('Ошибка при загрузке истории сообщений:', error);
+            messageList.innerHTML = '<p>Не удалось загрузить историю сообщений</p>';
         });
     }
 
@@ -175,20 +177,20 @@ document.addEventListener("DOMContentLoaded", function() {
         };
 
         socket.send(JSON.stringify(message));
-        messageInput.value = "";
+        messageInput.value = '';
     };
 
     function initializeApp() {
         if (token) {
-            authContainer.style.display = "none";
-            chatContainer.style.display = "block";
-            authError.textContainer = "";
+            authContainer.style.display = 'none';
+            chatContainer.style.display = 'block';
+            authError.textContainer = '';
 
             loadMessageHistory();
             connectWebSocket();
         } else {
-            authContainer.style.display = "block";
-            chatContainer.style.display = "none"
+            authContainer.style.display = 'block';
+            chatContainer.style.display = 'none'
         }
     }
 
