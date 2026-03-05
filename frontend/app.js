@@ -5,6 +5,10 @@ document.addEventListener("DOMContentLoaded", function() {
     const loginFormContainer = document.getElementById('login-form-container');
     const registerFormContainer = document.getElementById('register-form-container');
 
+    const loginForm = document.getElementById('login-form');
+    const registerForm = document.getElementById('register-form')
+
+
     const showRegisterLink = document.getElementById('show-register');
     const showLoginLink = document.getElementById('show-login');
 
@@ -56,7 +60,7 @@ document.addEventListener("DOMContentLoaded", function() {
         try {
             const response = await fetch('/api/auth/login', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application-json' },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password })
             });
 
@@ -85,7 +89,7 @@ document.addEventListener("DOMContentLoaded", function() {
         try {
             const response = await fetch('/api/auth/register', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application-json' },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username, email, password })
             });
 
@@ -123,10 +127,12 @@ document.addEventListener("DOMContentLoaded", function() {
         if (!token) return;
 
         // Устанавливаем соединение добавляя токен в URL;
-        socket = new WebSocket(`ws://${window.location.host}/ws?token=${token}`);
+        const wsUrl = `ws://${window.location.host}/ws?token=${token}`;
+        socket = new WebSocket(wsUrl);
 
         socket.onopen = () => {
             console.log("Websocket соединение успешно установлено.");
+            loadMessageHistory();
         };
 
         socket.onmessage = (event) => {
@@ -152,8 +158,17 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     function loadMessageHistory() {
-        fetch("/api/messages")
-        .then(response => response.json())
+        if (!token) return;
+
+        fetch("/api/messages", {
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Не удалось получить историю сообщений: ' + response.statusText);
+            }
+            return response.json();
+        })
         .then(messages => {
             messageList.innerHTML = "";
             if (messages && messages.length > 0) {
@@ -170,7 +185,7 @@ document.addEventListener("DOMContentLoaded", function() {
         event.preventDefault();
         const text = messageInput.value;
 
-        if (!text || !socket || ! socket.readyState !== WebSocket.OPEN) return;
+        if (!text || !socket || socket.readyState !== WebSocket.OPEN) return;
 
         const message = {
             text: text
@@ -184,7 +199,7 @@ document.addEventListener("DOMContentLoaded", function() {
         if (token) {
             authContainer.style.display = 'none';
             chatContainer.style.display = 'block';
-            authError.textContainer = '';
+            if (authError) authError.textContainer = '';
 
             loadMessageHistory();
             connectWebSocket();
