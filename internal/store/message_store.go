@@ -4,18 +4,18 @@ import (
 	"context"
 	"messenger/internal/models"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type Store struct {
-	db *pgx.Conn
+type MessageStore struct {
+	db *pgxpool.Pool
 }
 
-func NewStore(db *pgx.Conn) *Store {
-	return &Store{db: db}
+func NewMessageStore(db *pgxpool.Pool) *MessageStore {
+	return &MessageStore{db: db}
 }
 
-func (s *Store) GetMessages(ctx context.Context) ([]models.Message, error) {
+func (s *MessageStore) GetMessages(ctx context.Context) ([]models.Message, error) {
 	rows, err := s.db.Query(ctx, `
 		SELECT u.username, m.encrypted_content, m.created_at
 		FROM messages m
@@ -49,13 +49,9 @@ func (s *Store) GetMessages(ctx context.Context) ([]models.Message, error) {
 	return messages, nil
 }
 
-func (s *Store) CreateMessage(ctx context.Context, msg *models.Message) (*models.Message, error) {
-	var senderID int64 = 1
-	var chatID int64 = 1
+func (s *MessageStore) CreateMessage(ctx context.Context, msg *models.Message, userID int64) (*models.Message, error) {
 
-	if msg.User == "Bob" {
-		senderID = 2
-	}
+	var chatID int64 = 1
 
 	const query = `
 	WITH new_msg AS (
@@ -71,7 +67,7 @@ func (s *Store) CreateMessage(ctx context.Context, msg *models.Message) (*models
 	var savedMsg models.Message
 	var contentBytes []byte
 
-	err := s.db.QueryRow(ctx, query, senderID, chatID, msg.Text).Scan(
+	err := s.db.QueryRow(ctx, query, userID, chatID, msg.Text).Scan(
 		&savedMsg.User,
 		&contentBytes,
 		&savedMsg.SentAt,
