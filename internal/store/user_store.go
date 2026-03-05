@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+
 	"messenger/internal/models"
 
 	"github.com/jackc/pgx/v5"
@@ -21,10 +21,10 @@ func NewUserStore(db *pgxpool.Pool) *UserStore {
 }
 
 func (s *UserStore) CreateUser(ctx context.Context, username, email, password string) (*models.User, error) {
-	log.Println("[DIAGNOSTIC] 1: Вошел в CreateUser")
+
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		log.Printf("[DIAGNOSTIC] ОШИБКА на шаге 1.1 (хеширование): %v", err)
+
 		return nil, fmt.Errorf("ошибка при хешировании пароля: %w", err)
 	}
 
@@ -33,7 +33,6 @@ func (s *UserStore) CreateUser(ctx context.Context, username, email, password st
 		Email:        email,
 		PasswordHash: string(hashedPassword),
 	}
-	log.Println("[DIAGNOSTIC] 2: Пользователь создан, пароль хеширован. Готовлюсь к запросу в БД.")
 
 	query := `
 	INSERT INTO users (username, email, password_hash)
@@ -50,14 +49,11 @@ func (s *UserStore) CreateUser(ctx context.Context, username, email, password st
 		&user.CreatedAt,
 		&user.UpdatedAt)
 
-	log.Println("[DIAGNOSTIC] 3: Выполнил Scan(). Проверяю ошибку.")
-
 	if err != nil {
-		log.Printf("[DIAGNOSTIC] ОШИБКА на шаге 3.1 (ошибка от БД): %v", err)
+
 		return nil, fmt.Errorf("ошибка при создании пользователя: %w", err)
 	}
 
-	log.Println("[DIAGNOSTIC] 4: Ошибки нет. Успешно создал пользователя. Возвращаю результат.")
 	return user, nil
 }
 
