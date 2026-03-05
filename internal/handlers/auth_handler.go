@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"messenger/internal/auth"
 	"messenger/internal/models"
 	"messenger/internal/store"
@@ -61,6 +62,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	user, err := h.store.UserStore.CreateUser(r.Context(), req.Username, req.Email, req.Password)
 	if err != nil {
 		// TODO: необходимо различать ошибку "пользователь уже существует";
+		log.Printf("ОШИБКА СОЗДАНИЯ ПОЛЬЗОВАТЕЛЯ: %v", err)
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Не удалось создать пользователя"})
 		return
 	}
@@ -86,6 +88,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, models.ErrUserNotFound) {
 			writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "Неверные учётные данные"})
 		} else {
+			log.Printf("ОШИБКА ПОИСКА ПОЛЬЗОВАТЕЛЯ: %v", err)
 			writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Ошибка сервера"})
 		}
 		return
