@@ -2,8 +2,8 @@ document.addEventListener("DOMContentLoaded", function() {
     const authContainer = document.getElementById('auth-container');
     const chatContainer = document.getElementById('chat-container');
 
-    const loginForm = document.getElementById('login-form');
-    const registerForm = document.getElementById('register-form');
+    const loginFormContainer = document.getElementById('login-form-container');
+    const registerFormContainer = document.getElementById('register-form-container');
 
     const showRegisterLink = document.getElementById('show-register');
     const showLoginLink = document.getElementById('show-login');
@@ -11,13 +11,13 @@ document.addEventListener("DOMContentLoaded", function() {
     const authError = document.getElementById('auth-error');
 
 
-    const messageList = document.getElementById('messages-list');
-    const messageForm = document.getElementById('message-form');
-    const messageInput = document.getElementById('message-input');
+    const messageList = document.getElementById("messages-list");
+    const messageForm = document.getElementById("message-form");
+    const messageInput = document.getElementById("message-input");
     const logoutButton = document.getElementById('logout-button');
 
     let socket;
-    let token = localStorage.getItem("authToken")
+    let token = localStorage.getItem('authToken');
 
     // Переключение между формами login и register;
     showRegisterLink.addEventListener('click', (e) => {
@@ -56,8 +56,8 @@ document.addEventListener("DOMContentLoaded", function() {
         try {
             const response = await fetch('/api/auth/login', {
                 method: 'POST',
-                headers: {'Content-Type': 'application-json'},
-                body: JSON.stringify({email, password})
+                headers: { 'Content-Type': 'application-json' },
+                body: JSON.stringify({ email, password })
             });
 
             const data = await response.json();
@@ -85,8 +85,8 @@ document.addEventListener("DOMContentLoaded", function() {
         try {
             const response = await fetch('/api/auth/register', {
                 method: 'POST',
-                headers: {'Content-Type': 'application-json'},
-                body: JSON.stringify({username, email, password})
+                headers: { 'Content-Type': 'application-json' },
+                body: JSON.stringify({ username, email, password })
             });
 
             const data = await response.json();
@@ -100,7 +100,7 @@ document.addEventListener("DOMContentLoaded", function() {
             initializeApp();
         
         } catch (error) {
-            showAuthError(error.message)
+            showAuthError(error.message);
             console.error('Ошибка регистрации', error);
         }
     });
@@ -114,7 +114,7 @@ document.addEventListener("DOMContentLoaded", function() {
         authContainer.style.display = 'block';
         chatContainer.style.display = 'none';
         messageList.innerHTML = '';
-        console.log('Выход из системы.');
+        console.log("Выход из системы.");
     });
 
     // Chat logic;
@@ -190,7 +190,7 @@ document.addEventListener("DOMContentLoaded", function() {
             connectWebSocket();
         } else {
             authContainer.style.display = 'block';
-            chatContainer.style.display = 'none'
+            chatContainer.style.display = 'none';
         }
     }
 

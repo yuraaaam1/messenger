@@ -4,12 +4,15 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"messenger/internal/auth"
 	"messenger/internal/handlers"
 	"messenger/internal/store"
 	"messenger/internal/websocket"
 	"net/http"
 	"os"
+	"strings"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 )
@@ -17,6 +20,39 @@ import (
 type Config struct {
 	DatabaseURL string
 	JWTSecret   string
+}
+
+func jwtMiddleware(next http.HandlerFunc, jwtSecret string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" {
+			http.Error(w, "Отсутствует заголовок авторизации", http.StatusUnauthorized)
+			return
+		}
+
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+		if tokenString == authHeader {
+			http.Error(w, "Неверный формат токена", http.StatusUnauthorized)
+			return
+		}
+
+		token, err := jwt.ParseWithClaims(tokenString, &auth.JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
+			return []byte(jwtSecret), nil
+		})
+
+		if err != nil || !token.Valid {
+			http.Error(w, "Невалидный токен", http.StatusUnauthorized)
+			return
+		}
+
+		if claims, ok := token.Claims.(*auth.JWTClaims); ok && token.Valid {
+			ctx := context.WithValue(r.Context(), auth.UserContextKey, claims)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		} else {
+			http.Error(w, "Невалидный токен", http.StatusUnauthorized)
+		}
+
+	}
 }
 
 func loadConfig() (Config, error) {
@@ -69,7 +105,7 @@ func main() {
 
 	// Маршрут для подтягивания истории сообщений
 	messageHandler := handlers.NewMessageHandler(mainStore)
-	http.HandleFunc("/api/messages", messageHandler.GetMessagesHandler)
+	http.HandleFunc("/api/messages", jwtMiddleware(messageHandler.GetMessagesHandler, config.JWTSecret))
 
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		websocket.ServeWs(messageHub, w, r, config.JWTSecret)

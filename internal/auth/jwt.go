@@ -8,6 +8,10 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+type contextKey string
+
+const UserContextKey = contextKey("user")
+
 type JWTClaims struct {
 	UserID   int64  `json:"user_id"`
 	Username string `json:"username"`
