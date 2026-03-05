@@ -3,8 +3,8 @@ package store
 import "github.com/jackc/pgx/v5/pgxpool"
 
 type Store struct {
-	*UserStore
-	*MessageStore
+	UserStore    *UserStore
+	MessageStore *MessageStore
 }
 
 func NewStore(db *pgxpool.Pool) *Store {

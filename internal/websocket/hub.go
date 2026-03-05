@@ -52,7 +52,7 @@ func (h *Hub) Run() {
 
 			msg.User = clientMsg.Client.Username
 
-			savedMsg, err := h.store.CreateMessage(context.Background(), &msg, clientMsg.Client.UserID)
+			savedMsg, err := h.store.MessageStore.CreateMessage(context.Background(), &msg, clientMsg.Client.UserID)
 			if err != nil {
 				log.Printf("Ошибка при сохранении сообщения в БД: %v", err)
 				continue

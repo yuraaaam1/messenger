@@ -58,7 +58,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	// TODO: добавить валидацию (длина пароля, формат email и т.д);
 
-	user, err := h.store.CreateUser(r.Context(), req.Username, req.Email, req.Password)
+	user, err := h.store.UserStore.CreateUser(r.Context(), req.Username, req.Email, req.Password)
 	if err != nil {
 		// TODO: необходимо различать ошибку "пользователь уже существует";
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Не удалось создать пользователя"})
@@ -81,7 +81,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.store.GetUserByEmail(r.Context(), req.Email)
+	user, err := h.store.UserStore.GetUserByEmail(r.Context(), req.Email)
 	if err != nil {
 		if errors.Is(err, models.ErrUserNotFound) {
 			writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "Неверные учётные данные"})

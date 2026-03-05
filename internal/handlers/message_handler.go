@@ -1,8 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
-	"log"
 	"messenger/internal/store"
 	"net/http"
 )
@@ -11,18 +9,16 @@ type MessageHandler struct {
 	store *store.Store
 }
 
-func NewMessageHandler(s *store.Store) *MessageHandler {
-	return &MessageHandler{store: s}
+func NewMessageHandler(store *store.Store) *MessageHandler {
+	return &MessageHandler{store: store}
 }
 
 func (h *MessageHandler) GetMessagesHandler(w http.ResponseWriter, r *http.Request) {
-	messages, err := h.store.GetMessages(r.Context())
+	messages, err := h.store.MessageStore.GetMessages(r.Context())
 	if err != nil {
-		log.Printf("Ошибка при  получении сообщений из хранилища: %v\n", err)
-		http.Error(w, "InternalServerError", http.StatusInternalServerError)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Не удалось получить сообщения"})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(messages)
+	writeJSON(w, http.StatusOK, messages)
 }
