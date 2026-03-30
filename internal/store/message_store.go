@@ -15,12 +15,13 @@ func NewMessageStore(db *pgxpool.Pool) *MessageStore {
 	return &MessageStore{db: db}
 }
 
-func (s *MessageStore) GetMessages(ctx context.Context) ([]models.Message, error) {
+func (s *MessageStore) GetMessages(ctx context.Context, chatID int64) ([]models.Message, error) {
 	rows, err := s.db.Query(ctx, `
-		SELECT u.username, m.encrypted_content, m.created_at
+		SELECT u.username, m.chat_id, m.encrypted_content, m.created_at
 		FROM messages m
 		JOIN users u ON m.sender_id = u.id
-		ORDER BY m.created_at ASC`)
+		WHERE m.chat_id = $1
+		ORDER BY m.created_at ASC`, chatID)
 
 	if err != nil {
 		return nil, err
@@ -34,7 +35,7 @@ func (s *MessageStore) GetMessages(ctx context.Context) ([]models.Message, error
 		var msg models.Message
 		var contentBytes []byte
 
-		if err := rows.Scan(&msg.User, &contentBytes, &msg.SentAt); err != nil {
+		if err := rows.Scan(&msg.User, &msg.ChatID, &contentBytes, &msg.SentAt); err != nil {
 			return nil, err
 		}
 		msg.Text = string(contentBytes)
@@ -51,8 +52,6 @@ func (s *MessageStore) GetMessages(ctx context.Context) ([]models.Message, error
 
 func (s *MessageStore) CreateMessage(ctx context.Context, msg *models.Message, userID int64) (*models.Message, error) {
 
-	var chatID int64 = 1
-
 	const query = `
 	WITH new_msg AS (
 		INSERT INTO messages (sender_id, chat_id, encrypted_content, iv)
@@ -67,7 +66,7 @@ func (s *MessageStore) CreateMessage(ctx context.Context, msg *models.Message, u
 	var savedMsg models.Message
 	var contentBytes []byte
 
-	err := s.db.QueryRow(ctx, query, userID, chatID, msg.Text).Scan(
+	err := s.db.QueryRow(ctx, query, userID, msg.ChatID, msg.Text).Scan(
 		&savedMsg.User,
 		&contentBytes,
 		&savedMsg.SentAt,

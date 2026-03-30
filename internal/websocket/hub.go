@@ -14,7 +14,7 @@ type ClientMessage struct {
 }
 
 type Hub struct {
-	clients    map[*Client]bool    // Зарегестрированные клиенты
+	clients    map[*Client]bool    // Зарегистрированные клиенты
 	broadcast  chan *ClientMessage // Входящие сообщения
 	register   chan *Client        // Запросы на регистрацию
 	unregister chan *Client        // Запросы на отмену регистрации
