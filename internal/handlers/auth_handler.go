@@ -8,6 +8,9 @@ import (
 	"messenger/internal/models"
 	"messenger/internal/store"
 	"net/http"
+	"strings"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type AuthHandler struct {
@@ -57,11 +60,28 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: добавить валидацию (длина пароля, формат email и т.д);
+	if len(req.Username) < 3 || len(req.Username) > 50 {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Имя пользователя: от 3 до 50 символов"})
+		return
+	}
+
+	if len(req.Password) < 6 {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Пароль: минимум 6 символов"})
+		return
+	}
+
+	if !strings.Contains(req.Email, "@") {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Неверный формат email"})
+		return
+	}
 
 	user, err := h.store.UserStore.CreateUser(r.Context(), req.Username, req.Email, req.Password)
 	if err != nil {
-		// TODO: необходимо различать ошибку "пользователь уже существует";
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			writeJSON(w, http.StatusConflict, ErrorResponse{Error: "Пользователь с таким email уже существует"})
+			return
+		}
 		log.Printf("ОШИБКА СОЗДАНИЯ ПОЛЬЗОВАТЕЛЯ: %v", err)
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Не удалось создать пользователя"})
 		return

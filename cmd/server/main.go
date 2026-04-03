@@ -103,6 +103,15 @@ func main() {
 	http.HandleFunc("/api/auth/register", authHandler.Register)
 	http.HandleFunc("/api/auth/login", authHandler.Login)
 
+	// Инициализируем хендлер и маршруты для получения и создания чатов
+	chatHandler := handlers.NewChatHandler(mainStore)
+	http.HandleFunc("GET /api/chats", jwtMiddleware(chatHandler.GetChatHandler, config.JWTSecret))
+	http.HandleFunc("POST /api/chats", jwtMiddleware(chatHandler.CreateChatHandler, config.JWTSecret))
+
+	// Маршрут для поиска пользователей
+	userHandler := handlers.NewUserHandler(mainStore)
+	http.HandleFunc("GET /api/users", jwtMiddleware(userHandler.SearchUsersHandler, config.JWTSecret))
+
 	// Маршрут для подтягивания истории сообщений
 	messageHandler := handlers.NewMessageHandler(mainStore)
 	http.HandleFunc("/api/messages", jwtMiddleware(messageHandler.GetMessagesHandler, config.JWTSecret))

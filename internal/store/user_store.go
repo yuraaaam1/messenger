@@ -85,3 +85,34 @@ func CheckPasswordHash(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
 }
+
+func (s *UserStore) SearchUsers(ctx context.Context, query string) ([]*models.User, error) {
+	rows, err := s.db.Query(ctx,
+		`SELECT id, username, email, created_at, updated_at FROM users
+	WHERE username ILIKE $1
+	LIMIT 20`, "%"+query+"%")
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var users []*models.User
+
+	for rows.Next() {
+		u := &models.User{}
+
+		if err := rows.Scan(
+			&u.ID,
+			&u.Username,
+			&u.Email,
+			&u.CreatedAt,
+			&u.UpdatedAt); err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+
+	return users, nil
+}
