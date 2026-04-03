@@ -64,7 +64,21 @@ func (h *Hub) Run() {
 				continue
 			}
 
+			memberIDs, err := h.store.ChatStore.GetMemberIDs(context.Background(), savedMsg.ChatID)
+			if err != nil {
+				log.Printf("Ошибка при получении пользователей чата: %v", err)
+				continue
+			}
+
+			memberSet := make(map[int64]bool)
+			for _, id := range memberIDs {
+				memberSet[id] = true
+			}
+
 			for client := range h.clients {
+				if !memberSet[client.UserID] {
+					continue
+				}
 				select {
 				case client.send <- broadcastData:
 				default:

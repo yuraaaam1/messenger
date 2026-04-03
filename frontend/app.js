@@ -160,7 +160,7 @@ document.addEventListener("DOMContentLoaded", function() {
     function loadMessageHistory() {
         if (!token) return;
 
-        fetch("/api/messages", {
+        fetch("/api/messages?chat_id=1", {
             headers: { 'Authorization': `Bearer ${token}` }
         })
         .then(response => {
@@ -188,6 +188,7 @@ document.addEventListener("DOMContentLoaded", function() {
         if (!text || !socket || socket.readyState !== WebSocket.OPEN) return;
 
         const message = {
+            chat_id: 1,
             text: text
         };
 

@@ -56,9 +56,9 @@ func (s *MessageStore) CreateMessage(ctx context.Context, msg *models.Message, u
 	WITH new_msg AS (
 		INSERT INTO messages (sender_id, chat_id, encrypted_content, iv)
 		VALUES ($1, $2, $3, 'temp_iv')
-		RETURNING id, sender_id, encrypted_content, created_at
+		RETURNING id, sender_id, chat_id, encrypted_content, created_at
 	)
-	SELECT u.username, nm.encrypted_content, nm.created_at
+	SELECT u.username, nm.chat_id, nm.encrypted_content, nm.created_at
 	FROM new_msg nm
 	JOIN users u ON nm.sender_id = u.id;
 	`
@@ -68,6 +68,7 @@ func (s *MessageStore) CreateMessage(ctx context.Context, msg *models.Message, u
 
 	err := s.db.QueryRow(ctx, query, userID, msg.ChatID, msg.Text).Scan(
 		&savedMsg.User,
+		&savedMsg.ChatID,
 		&contentBytes,
 		&savedMsg.SentAt,
 	)

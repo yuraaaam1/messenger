@@ -84,3 +84,29 @@ func (s *ChatStore) IsMember(ctx context.Context, chatID, userID int64) (bool, e
 
 	return exists, err
 }
+
+// Получение всех пользователей чата
+func (s *ChatStore) GetMemberIDs(ctx context.Context, chatID int64) ([]int64, error) {
+	rows, err := s.db.Query(ctx,
+		`SELECT user_id FROM chat_participants
+	WHERE chat_id = $1`, chatID)
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var ids []int64
+
+	for rows.Next() {
+		var id int64
+
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+
+		ids = append(ids, id)
+	}
+
+	return ids, nil
+}
