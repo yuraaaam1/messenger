@@ -1,41 +1,49 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang = "ru">
 <head>
     <meta charset="UTF-8">
-    <title>Мессенджер</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BackRooms</title>
     <link rel="stylesheet" href="style.css">
-</head> 
+</head>
+
 <body>
-    <div id="auth-container">
-        <div id="login-form-container">
-            <h2>Вход</h2>
-            <form id="login-form">
-                <input type="email" id="login-email" placeholder="Email" required>
-                <input type="password" id="login-password" placeholder="Пароль" required>
-                <button type="submit">Войти</button>
-            </form>
-            <p>Нет акаунта? <a href="#" id="show-register">Регистрация</a></p>
+    <div id="auth-screen">
+        <h1>BackRooms</h1>
+        <p class="subtitle">Закулисье</p>
+
+        <div id="create-form">
+            <h2>Создать комнату</h2>
+            <input type="text" id="create-room-name" placeholder="Название комнаты"/>
+            <input type="password" id="create-room-key" placeholder="Придумайте секретный ключ"/>
+            <button id="create-btn">Создать</button>
         </div>
-        <div id="register-form-container" style="display: none;">    
-            <h2>Регистрация</h2>
-            <form id="register-form">
-                <input type="text" id="register-username" placeholder="Имя пользователя" required>
-                <input type="email" id="register-email" placeholder="Email" required>
-                <input type="password" id="register-password" placeholder="Пароль" required>  
-                <button type="submit">Зарегистрироваться</button>
-            </form>
-            <p>Уже есть аккаунт? <a href="#" id="show-login">Вход</a></p>
+        
+        <hr>
+
+        <div id="join-form">
+            <h2>Войти в комнату</h2>
+            <input type="password" id="join-room-key" placeholder="Введите секретный ключ"/>
+            <button id="join-btn">Войти</button>
         </div>
-        <p id="auth-error" class="error-message"></p>
-    </div>          
-    <div id="chat-container" style="display: none;">
-        <div id="messages-list"></div>
-        <form id="message-form">
-            <input type="text" id="message-input" placeholder="Введите сообщение...">
-            <button type="submit">Отправить</button>
-        </form>
-        <button id="logout-button">Выйти</button>    
-    </div>    
-    <script src="app.js"></script>
+        
+        <p id="auth-error" class="error"></p>
+       </div>
+       
+       <div id="chat-screen" style="display: none;">
+            <div id="chat-header">
+                <span id="room-name"></span>
+                <button id="leave-btn">Выйти из комнаты</button>
+            </div>
+            
+            <div id="messages-list"></div>
+
+            <form id="message-form">
+                <input type="text" id="message-input" placeholder="Введите сообщение..." autocomplete="off"/>
+                <button type="submit">Отправить</button>
+            </form>    
+        </div>
+
+        <script src="app.js"></script>
 </body>
-</html>         
+</html>

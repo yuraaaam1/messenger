@@ -4,55 +4,18 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"messenger/internal/auth"
 	"messenger/internal/handlers"
 	"messenger/internal/store"
 	"messenger/internal/websocket"
 	"net/http"
 	"os"
-	"strings"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 )
 
 type Config struct {
 	DatabaseURL string
-	JWTSecret   string
-}
-
-func jwtMiddleware(next http.HandlerFunc, jwtSecret string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" {
-			http.Error(w, "Отсутствует заголовок авторизации", http.StatusUnauthorized)
-			return
-		}
-
-		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-		if tokenString == authHeader {
-			http.Error(w, "Неверный формат токена", http.StatusUnauthorized)
-			return
-		}
-
-		token, err := jwt.ParseWithClaims(tokenString, &auth.JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
-			return []byte(jwtSecret), nil
-		})
-
-		if err != nil || !token.Valid {
-			http.Error(w, "Невалидный токен", http.StatusUnauthorized)
-			return
-		}
-
-		if claims, ok := token.Claims.(*auth.JWTClaims); ok && token.Valid {
-			ctx := context.WithValue(r.Context(), auth.UserContextKey, claims)
-			next.ServeHTTP(w, r.WithContext(ctx))
-		} else {
-			http.Error(w, "Невалидный токен", http.StatusUnauthorized)
-		}
-
-	}
 }
 
 func loadConfig() (Config, error) {
@@ -61,29 +24,21 @@ func loadConfig() (Config, error) {
 		return Config{}, fmt.Errorf("Переменная окружения \"DATABASE_URL\" не установлена")
 	}
 
-	jwtSecret := os.Getenv("JWT_SECRET")
-	if jwtSecret == "" {
-		return Config{}, fmt.Errorf("Переменная окружени \"JWT_SECRET\" не установлена")
-	}
-
 	return Config{
 		DatabaseURL: dbURL,
-		JWTSecret:   jwtSecret,
 	}, nil
 }
 
 func main() {
 	if err := godotenv.Load(); err != nil {
-		log.Println("Файл .env не найден, используются переменные окружения системы")
+		log.Println("Файл .env не найден, используюстя переменные окружения системы")
 	}
 
-	// Загружаем конфигурации с env
 	config, err := loadConfig()
 	if err != nil {
-		log.Fatalf("Ошибка при загрузке конфигурации: %v", err)
+		log.Fatalf("Ошибка при запуске конфигурации: %v", err)
 	}
 
-	// Создаём пул соединений с базой данных
 	dbpool, err := pgxpool.New(context.Background(), config.DatabaseURL)
 	if err != nil {
 		log.Fatalf("Не удалось подключиться к базе данных: %v", err)
@@ -91,33 +46,18 @@ func main() {
 	defer dbpool.Close()
 
 	mainStore := store.NewStore(dbpool)
-	messageHub := websocket.NewHub(mainStore)
+	messageHub := websocket.NewHub()
 	go messageHub.Run()
 
 	fs := http.FileServer(http.Dir("./frontend"))
-
 	http.Handle("/", fs)
 
-	// Инициализируем хендлер и маршруты для аутентификации
-	authHandler := handlers.NewAuthHandler(mainStore, config.JWTSecret)
-	http.HandleFunc("/api/auth/register", authHandler.Register)
-	http.HandleFunc("/api/auth/login", authHandler.Login)
-
-	// Инициализируем хендлер и маршруты для получения и создания чатов
-	chatHandler := handlers.NewChatHandler(mainStore)
-	http.HandleFunc("GET /api/chats", jwtMiddleware(chatHandler.GetChatHandler, config.JWTSecret))
-	http.HandleFunc("POST /api/chats", jwtMiddleware(chatHandler.CreateChatHandler, config.JWTSecret))
-
-	// Маршрут для поиска пользователей
-	userHandler := handlers.NewUserHandler(mainStore)
-	http.HandleFunc("GET /api/users", jwtMiddleware(userHandler.SearchUsersHandler, config.JWTSecret))
-
-	// Маршрут для подтягивания истории сообщений
-	messageHandler := handlers.NewMessageHandler(mainStore)
-	http.HandleFunc("/api/messages", jwtMiddleware(messageHandler.GetMessagesHandler, config.JWTSecret))
+	roomHandler := handlers.NewRoomHandler(mainStore)
+	http.HandleFunc("POST /api/rooms", roomHandler.CreateRoom)
+	http.HandleFunc("POST /api/rooms/join", roomHandler.JoinRoom)
 
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		websocket.ServeWs(messageHub, w, r, config.JWTSecret)
+		websocket.ServeWs(messageHub, w, r, mainStore)
 	})
 
 	log.Println("Сервер запущен на http://localhost:8080")
