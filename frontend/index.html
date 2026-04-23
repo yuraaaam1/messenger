@@ -3,14 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BackRooms</title>
+    <title>Rooms</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
     <div id="auth-screen">
-        <h1>BackRooms</h1>
-        <p class="subtitle">Закулисье</p>
+        <h1>rooms</h1>
+
+        <div id="nickname-form">
+            <input type="text" id="nickname-input" placeholder="Имя" maxlength="20"/>
+        </div>    
 
         <div id="create-form">
             <h2>Создать комнату</h2>
@@ -39,6 +43,10 @@
             <div id="messages-list"></div>
 
             <form id="message-form">
+                <label id="file-label" title="Прикрепить файл">
+                    📎
+                    <input type="file" id="file-input" style="display: none" />
+                </label>
                 <input type="text" id="message-input" placeholder="Введите сообщение..." autocomplete="off"/>
                 <button type="submit">Отправить</button>
             </form>    

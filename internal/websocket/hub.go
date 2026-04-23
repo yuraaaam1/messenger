@@ -48,6 +48,9 @@ func (h *Hub) Run() {
 			room := h.rooms[clientMsg.Client.RoomID]
 
 			for client := range room {
+				if client == clientMsg.Client {
+					continue
+				}
 				select {
 				case client.send <- clientMsg.Message:
 				default:
