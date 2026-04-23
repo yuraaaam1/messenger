@@ -2,9 +2,9 @@ package models
 
 import "time"
 
-type Chat struct {
+type Room struct {
 	ID        int64     `json:"id"`
+	KeyHash   string    `json:"key_hash"`
 	Name      string    `json:"name"`
-	IsGroup   bool      `json:"is_group"`
 	CreatedAt time.Time `json:"created_at"`
 }

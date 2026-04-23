@@ -2,7 +2,7 @@ package websocket
 
 import (
 	"log"
-	"messenger/internal/auth"
+	"messenger/internal/store"
 	"net/http"
 	"time"
 
@@ -11,7 +11,7 @@ import (
 
 const (
 	writeWait      = 10 * time.Second
-	maxMessageSize = 32 * 1024
+	maxMessageSize = 10 * 1024 * 1024
 	pongWait       = 60 * time.Second
 	pingPeriod     = (pongWait * 9) / 10
 )
@@ -31,9 +31,9 @@ type Client struct {
 
 	send chan []byte
 
-	UserID int64
+	RoomID int64
 
-	Username string
+	DeviceKeyHash string
 }
 
 // readPump считывает сообщения от клиента и передаёт их в хаб
@@ -106,35 +106,31 @@ func (c *Client) writePump() {
 }
 
 // Обрабатывает websocket запрросы от клиента
-func ServeWs(hub *Hub, w http.ResponseWriter, r *http.Request, jwtSecret string) {
-	// Получаем токен из параметров запроса;
-	tokenString := r.URL.Query().Get("token")
-	if tokenString == "" {
-		log.Println("Токен отсутствует в запросе")
-		http.Error(w, "Missing token", http.StatusUnauthorized)
+func ServeWs(hub *Hub, w http.ResponseWriter, r *http.Request, s *store.Store) {
+	deviceKeyHash := r.URL.Query().Get("device_key_hash")
+	if deviceKeyHash == "" {
+		http.Error(w, "Отсутствует device_key_hash", http.StatusUnauthorized)
 		return
 	}
-	// Валидируем токен;
-	claims, err := auth.ValidateJWT(tokenString, jwtSecret)
+
+	roomID, err := s.RoomStore.GetDeviceRoomID(r.Context(), deviceKeyHash)
 	if err != nil {
-		log.Printf("Ошибка валидации токена: %v", err)
-		http.Error(w, "Invalid token", http.StatusUnauthorized)
+		http.Error(w, "Устройство не зарегистрировано", http.StatusUnauthorized)
 		return
 	}
-	// Обновляемся до WebSocket;
+
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err)
 		return
 	}
-	// Создаём клиента
-	client := &Client{
-		hub:  hub,
-		conn: conn,
-		send: make(chan []byte, 256),
 
-		UserID:   claims.UserID,
-		Username: claims.Username,
+	client := &Client{
+		hub:           hub,
+		conn:          conn,
+		send:          make(chan []byte, 256),
+		RoomID:        roomID,
+		DeviceKeyHash: deviceKeyHash,
 	}
 
 	client.hub.register <- client
