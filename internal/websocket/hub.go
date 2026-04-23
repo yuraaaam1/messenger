@@ -1,11 +1,7 @@
 package websocket
 
 import (
-	"context"
-	"encoding/json"
 	"log"
-	"messenger/internal/models"
-	"messenger/internal/store"
 )
 
 type ClientMessage struct {
@@ -14,20 +10,18 @@ type ClientMessage struct {
 }
 
 type Hub struct {
-	clients    map[*Client]bool    // Зарегестрированные клиенты
-	broadcast  chan *ClientMessage // Входящие сообщения
-	register   chan *Client        // Запросы на регистрацию
-	unregister chan *Client        // Запросы на отмену регистрации
-	store      *store.Store
+	rooms      map[int64]map[*Client]bool // Зарегистрированные клиенты
+	broadcast  chan *ClientMessage        // Входящие сообщения
+	register   chan *Client               // Запросы на регистрацию
+	unregister chan *Client               // Запросы на отмену регистрации
 }
 
-func NewHub(s *store.Store) *Hub {
+func NewHub() *Hub {
 	return &Hub{
+		rooms:      make(map[int64]map[*Client]bool),
 		broadcast:  make(chan *ClientMessage),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
-		clients:    make(map[*Client]bool),
-		store:      s,
 	}
 }
 
@@ -35,41 +29,33 @@ func (h *Hub) Run() {
 	for {
 		select {
 		case client := <-h.register:
-			h.clients[client] = true
-			log.Printf("Клиент %s (ID: %d) подключен. Всего подключений: %d", client.Username, client.UserID, len(h.clients))
+			if h.rooms[client.RoomID] == nil {
+				h.rooms[client.RoomID] = make(map[*Client]bool)
+			}
+			h.rooms[client.RoomID][client] = true
+			log.Printf("Клиент подключен к комнате %d. Клиентов в комнате: %d", client.RoomID, len(h.rooms[client.RoomID]))
+
 		case client := <-h.unregister:
-			if _, ok := h.clients[client]; ok {
-				delete(h.clients, client)
-				close(client.send)
-				log.Printf("Клиент %s (ID: %d) отключён. Всего подключений: %d", client.Username, client.UserID, len(h.clients))
+			if room, ok := h.rooms[client.RoomID]; ok {
+				if _, ok := room[client]; ok {
+					delete(room, client)
+					close(client.send)
+					log.Printf("Клиент отключён от комнаты %d. Клиентов в комнате: %d", client.RoomID, len(h.rooms[client.RoomID]))
+				}
 			}
+
 		case clientMsg := <-h.broadcast:
-			var msg models.Message
-			if err := json.Unmarshal(clientMsg.Message, &msg); err != nil {
-				log.Printf("Ошибка при распаковке JSON: %v", err)
-				continue
-			}
+			room := h.rooms[clientMsg.Client.RoomID]
 
-			msg.User = clientMsg.Client.Username
-
-			savedMsg, err := h.store.MessageStore.CreateMessage(context.Background(), &msg, clientMsg.Client.UserID)
-			if err != nil {
-				log.Printf("Ошибка при сохранении сообщения в БД: %v", err)
-				continue
-			}
-
-			broadcastData, err := json.Marshal(savedMsg)
-			if err != nil {
-				log.Printf("Ошибка при упаковке JSON для рассылки: %v", err)
-				continue
-			}
-
-			for client := range h.clients {
+			for client := range room {
+				if client == clientMsg.Client {
+					continue
+				}
 				select {
-				case client.send <- broadcastData:
+				case client.send <- clientMsg.Message:
 				default:
 					close(client.send)
-					delete(h.clients, client)
+					delete(room, client)
 				}
 			}
 		}
